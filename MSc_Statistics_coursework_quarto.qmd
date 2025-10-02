@@ -32,11 +32,14 @@ knitr::opts_chunk$set(
 )
 include_solutions <- TRUE
 ```
+
 ```{r setup2, include=FALSE, tidy=TRUE}
 require(rmarkdown)
 require(knitr)
 require(kableExtra)
 # Put any library imports and other preamble here.
+library(ggplot2)
+library(dplyr)
 ```
 
 This Rmarkdown document is intended to provide a basic template that you may use throughout the course, and to introduce you to basic functionality of the open-source bookdown R package for writing Rmarkdown documents [@xie2016bookdown].
@@ -49,119 +52,167 @@ Please note:
 - kable syntax to build clean and clear tables that can be referenced;
 - Rmarkdown inline functions to collect and print all code used.
 
-# Sampling from the Cauchy distribution
+# Useful Code Block Modifications
 
-In this question we seek to generate samples from the standard Cauchy distribution, with pdf given by
-\begin{equation}
-  p(x) = \frac{1}{\pi (1 + x^2)}, \quad x \in \mathbb{R}.
-  (\#eq:1)
-\end{equation}
-The cdf associated with \@ref(eq:1) is given by
-\begin{equation}
-  F(x) = \frac{1}{\pi}\arctan(x) + \frac{1}{2}.
-  (\#eq:2)
-\end{equation}
+Sometimes, you don't want code blocks to evaluate as normal. Here's how to fix that.
 
-**Part a.**  We apply the inversion method as described by @graham2013stochastic. We first compute the generalised inverse of the cdf \@ref(eq:2).  To this end, let $y\in [0,1]$, then
+```{{r}}
+#| warning: false (won't include warnings on render)
+#| eval: false (won't evaluate code on render; useful for install.packages 
+                  # or blocks that cause errors)
+#| echo: false (will evaluate code but not show it on render)
+#| results: hold (will print the results of a code block in one block,
+                  # as opposed to splitting the code into several blocks)
+```
 
-\begin{align}
-    y &= F(x), \quad \iff (\#eq:3a) \\
-    y &= \frac{1}{\pi}\arctan(x) + \frac{1}{2} \quad \iff \\
-    y-\frac{1}{2}  &= \frac{1}{\pi}\arctan(x)  \quad \iff \\
-    \pi\left(y-\frac{1}{2}\right)  &= \arctan(x)  \quad \iff \\
-    x &= \tan\left(\pi\left(y-\frac{1}{2}\right)\right). 
-\end{align}
+Note: to print a code block 'verbatim,' like above, put an extra set of curly brackets around the code language declaration, like so: {{r}}.
 
-By the inversion method [@graham2013stochastic], if $Y \sim U[0,1]$, then 
+# Loading Data
 
-\begin{equation}
-  X = \tan\left(\pi\left(Y-\frac{1}{2}\right)\right),
-  (\#eq:4)
-\end{equation}
+As an example in this file, we'll run a simple descriptive analysis of the `ChickWeight` dataset, which comes with `R`.
 
-```{r, echo=FALSE}
+```{r}
+chickens <- datasets::ChickWeight
+```
 
-### Question 1a
+# Some Sample Analysis
 
-generate_cauchy_samples <- function(n) {
-  # Generate 'n' uniform random numbers between 0 and 1
-  u <- runif(n)
-  
-  # Apply the inverse CDF formula to get Cauchy samples
-  samples <- tan(pi * (u - 0.5))  
-  return(samples)
-}
+We can start by getting some measures of centrality. The block below will evaluate each line separately, displaying the result for each as separate blocks.
 
-num_samples = 1000
+```{r}
+mean(chickens$weight)
+median(chickens$weight)
+```
 
-# Generate samples from the standard Cauchy distribution
-cauchy_samples <- generate_cauchy_samples(num_samples)
+If we want one block of code followed by one block of results, we can use the `hold` option in the code block:
 
+```{r}
+#| results: hold
+mean(chickens$weight)
+median(chickens$weight)
+```
+
+Now, let's ask some questions from our data. Does the chicks' weight depend on their diet?
+
+```{r}
+chickens %>% ggplot(aes(x = Diet, y = weight)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+Not a ton of difference between some levels, but could be significant! Let's check that the experiment was run properly: that there is the same number of chicks on each diet.
+
+```{r}
+table(chickens$Diet)
+```
+
+I don't love how that table looks, let's try a prettier one using `kable`.
+
+```{r}
+#| label: fig-diet-count
+diet_table <- table(chickens$Diet)
+knitr::kable(diet_table, col.names = c("Diet", "Count"))
 ```
 
 
-**Part b.**   The empirical cdf based on $N$ samples $x_1, \ldots, x_N$ is defined to be
-              $$
-                \widehat{F}(t) = \frac{1}{N}\sum_{i = 1}^N \mathbf{1}[x_i \leq t], \quad x\in \mathbb{t}.
-              $$
-To generate the empirical cdf in R, we perform the following steps:
-            
-a. Generate $N$ samples from the distribution using the inversion method, as detailed in the previous question.  
-b. Sort the samples in ascending order $x_1 \leq x_2 \leq x_3 \leq \ldots \leq x_N$.
-c. The empirical CDF at value $x_i$ is given by $i/N$.  
+Let's try a linear model.
 
+```{r}
+#linear model
 
-In the following figure we plot the empirical cdf based on 1000 samples (black line), and compare against the analytical cdf (red line).  
+fit <- lm(weight ~ Diet, data = chickens)
+summary(fit)
+```
+
+Horrible $R^2$! Diet is not a good predictor of weight. Still, let's use `summary` with `kable` to get a prettier display.
+
+```{r}
+knitr::kable(round(summary(fit)$coefficients,2))
+```
+
+Much better! 
+
+## Referencing Figures/Sources/Tables
+
+Just for fun, let's look at some time series, and not print the code that generates it.
 
 ```{r echo=FALSE}
-
-### Question 1b
-
-# Sort the samples in ascending order
-sorted_samples <- sort(cauchy_samples)
-
-# Calculate the cumulative probabilities for each sample
-cumulative_probs <- (1:num_samples) / num_samples
-
-x_values <- seq(-100, 100,  length.out = 1000)
-cdf_values <- pcauchy(x_values)
-
-# Plot the empirical CDF
-plot(sorted_samples, 
-     cumulative_probs, 
-     type = "s", 
-     xlab = "x", 
-     ylab = "Empirical CDF", 
-     main = "Empirical CDF of Standard Cauchy Distribution", 
-     lwd = 2, lty = 1, xlim = c(-100,100))
-lines(x_values, cdf_values, type = "l", 
-      xlab = "x", ylab = "CDF", main = "CDF of Standard Cauchy Distribution", 
-      col = 'red', lty = 2)
+#| label: fig-time-series
+#| fig-cap: "A scatterplot displaying the varying weights of each chick over time."
+chickens %>% ggplot(aes(x = Time, y = weight)) +
+  geom_point() +
+  theme_minimal()
 ```
 
-**Part c.**  We shall use the samples to compute the empirical cdf for the values $x = 0.5, 1, 10$.  
+We can also reference the plot and a source like so: In @fig-time-series, the weight of the chicks increases over time. The variation of the chicks' weight also increases over time. This corresponds with the theory introduced @efron1987better. An interesting comparison can be made with @fig-diet-count.
 
-```{r echo=FALSE}
+## Referencing Equations
 
-### Question 1c
-
-calculate_ecdf <- function(x) {
-    return(sum(sorted_samples <= x)/num_samples)
-}
-
-df <- data.frame(x = c(0.5, 1.0, 10.0), 
-                ecdf = c(calculate_ecdf(0.5), 
-                         calculate_ecdf(1.0), 
-                         calculate_ecdf(10.0))
-                )
-kbl(df,
-    caption = 'Empirical CDF', 
-    label = 'ecdf',
-    digits = 2) %>%
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed"),
-    font_size = 12)
+``` markdown
+$$ e^{\pi i} + 1 = 0.$${#eq-euler}
 ```
+
+$$ e^{\pi i} + 1 = 0.$${#eq-euler}
+
+@eq-euler states an elegant and well known result. By convention, equations should only be numbered if they are mentioned in the main text.
+
+```{r}
+#| layout-ncol: 2
+#| label: fig-example-plots
+#| fig-cap: "Two example plots relating to the Gaussian distribution."
+#| fig-subcap: 
+#|   - "Gaussian distribution"
+#|   - "Gaussian QQ-plot"
+
+x <- seq(from = -3, to = 3,by = 0.01)
+density <- dnorm(x, mean = 0, sd = 1)
+
+plot(
+  x = x,
+  y = density,
+  bty = "n",
+  cex.axis = 1.4,
+  cex.lab = 1.4,
+  type = "l",
+  lwd = 2)
+
+y <- rnorm(n = 100, mean = 3, sd = 2)
+qqnorm(y, cex.axis = 1.4, cex.lab = 1.4, main = "")
+```
+
+@fig-example-plots shows how we can create multiple plots within a code block and then have these appear within the same figure as sub-figures. A probability density function is shown in @fig-example-plots-1, while a quantile-quantile plot is shown in @fig-example-plots-2.
+
+
+
+## What goes where? Tiles, Captions and Descriptions 
+
+
+| Aspect          | Plot Title                      | Figure Caption                                      |
+|-----------------|---------------------------------|-----------------------------------------------------|
+| Location        | Inside or above the plot        | Outside the plot                                    |
+| Purpose         | Quick context for the plot      | Formal description with interpretive context        |
+| Referencing     | Rarely referenced in the text   | Commonly referenced (e.g., “see Figure 1”)          |
+
+Where a figure or table is mentioned in the main text you should explain _how_ it supports any claims that you are making. 
+
+> BAD: @fig-penguin-scatter demonstrates Simpson's paradox.
+
+> GOOD: @fig-penguin-scatter shows that while there appears to be a positive association between bill length and depth _within_ each species, this association disappears or perhaps reverses when considering all species together. This is an example of Simpson's paradox [simpson1951contingency].
+
+## Useful Resources 
+
+- Imperial Coursework Report Template
+- [Quarto documentation](https://quarto.org/docs/guide/)
+- [Make a reprex, please](https://youtu.be/G5Nm-GpmrLw?si=-GkQa9hK1yWiW37-)
+- Telling Stories With Data 
+  - [3 - Reproducilbe workflows](https://tellingstorieswithdata.com/03-workflow.html)
+- R style guides [Google](https://google.github.io/styleguide/Rguide.html), [Tidyverse](https://style.tidyverse.org/).
+
+- Effective Data Science
+  - [1 - Organising your work](https://eds-notes.zakvarty.com/101-workflows-organising-your-work)
+  - [8 - Exploratory data analysis](https://eds-notes.zakvarty.com/302-edav-analysis)
+  - [9 - Data visualisation](https://eds-notes.zakvarty.com/303-edav-visualisation)
+- [The TidyTuesday Cookbook](https://nrennie.rbind.io/art-of-viz/) 
 
 
 # Code appendix
