@@ -13,24 +13,48 @@ format-links: false
 bibliography: "MSc_Statistics_coursework_template_quarto.bib" 
 ---
 
+```{r}
+#| include: false
+# the following css block is my attempt to switch the base font to EB Garamond and the headers' fonts to Radley. still a work in progress!
+```
+
+
 <style type="text/css">
+
+/*-- scss:defaults --*/
+
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Radley:ital@0;1&display=swap');
+
+$font-family-serif: "EB Garamond", Radley, serif !default;
+$font-family-heading: Radley;
+$font-family-base: $font-family-serif;
+
+/*-- scss:rules --*/
+
 h1{
   font-size: 24pt;
+  font-family: $font-family-heading;
 }
 h2{
   font-size: 18pt;
+  font-family: $font-family-heading;
 }
 body{
   font-size: 12pt;
+  font-family: "EB Garamond", serif !default;
 }
 </style>
+
 
 ```{r setup, include = FALSE, tidy=TRUE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  dev = "ragg_png"
 )
 include_solutions <- TRUE
+
 ```
 
 ```{r setup2, include=FALSE, tidy=TRUE}
